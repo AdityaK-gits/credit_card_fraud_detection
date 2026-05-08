@@ -1,0 +1,2516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Credit Card Fraud Detection Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.4/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore-compat.js"></script>
+  <style>
+    :root {
+      --sand: #f7efe3;
+      --sand-deep: #f0dfc4;
+      --ink: #15324a;
+      --muted: #4a667c;
+      --card: rgba(255, 255, 255, 0.82);
+      --line: rgba(21, 50, 74, 0.12);
+      --teal: #26797b;
+      --teal-soft: #d9f1ed;
+      --coral: #d95d39;
+      --amber: #efb24e;
+      --rose: #f8d4cb;
+      --shadow: 0 22px 45px rgba(21, 50, 74, 0.12);
+      --radius: 24px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at top left, rgba(239, 178, 78, 0.26), transparent 28%),
+        radial-gradient(circle at top right, rgba(38, 121, 123, 0.16), transparent 26%),
+        linear-gradient(180deg, #fbf6ef 0%, #edf4f4 100%);
+      color: var(--ink);
+      font-family: "Space Grotesk", sans-serif;
+    }
+
+    .shell {
+      width: min(1380px, calc(100vw - 32px));
+      margin: 24px auto 48px;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1.4fr 0.9fr;
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+
+    .panel {
+      background: var(--card);
+      border: 1px solid rgba(255, 255, 255, 0.65);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+    }
+
+    .hero-copy {
+      padding: 28px 30px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      background: rgba(21, 50, 74, 0.07);
+      color: var(--muted);
+      font-size: 0.86rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 18px 0 12px;
+      font-family: "Cormorant Garamond", serif;
+      font-size: clamp(2.8rem, 5vw, 4.8rem);
+      line-height: 0.94;
+      letter-spacing: -0.03em;
+    }
+
+    .lead {
+      max-width: 760px;
+      font-size: 1rem;
+      line-height: 1.7;
+      color: var(--muted);
+    }
+
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .pill {
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: rgba(38, 121, 123, 0.08);
+      color: var(--ink);
+      font-size: 0.92rem;
+    }
+
+    .hero-aside {
+      padding: 24px;
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      gap: 16px;
+      background:
+        linear-gradient(150deg, rgba(21, 50, 74, 0.96), rgba(39, 94, 107, 0.94)),
+        linear-gradient(150deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.04));
+      color: #f6fbfb;
+    }
+
+    .hero-aside h3 {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 500;
+      color: rgba(246, 251, 251, 0.78);
+    }
+
+    .threshold-wrap {
+      display: grid;
+      gap: 12px;
+      align-content: start;
+    }
+
+    .threshold-value {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+    }
+
+    .threshold-value strong {
+      font-size: 2.6rem;
+      line-height: 1;
+      font-weight: 700;
+    }
+
+    .threshold-note {
+      color: rgba(246, 251, 251, 0.8);
+      font-size: 0.92rem;
+      line-height: 1.6;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--amber);
+    }
+
+    .mini-metrics {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .mini-card {
+      padding: 14px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .mini-card span {
+      display: block;
+      font-size: 0.8rem;
+      color: rgba(246, 251, 251, 0.72);
+      margin-bottom: 8px;
+    }
+
+    .mini-card strong {
+      font-size: 1.35rem;
+    }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    .metric-card {
+      padding: 18px;
+      min-height: 112px;
+    }
+
+    .metric-card span {
+      display: block;
+      font-size: 0.83rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 10px;
+    }
+
+    .metric-card strong {
+      display: block;
+      font-size: 2rem;
+      line-height: 1.05;
+    }
+
+    .metric-card small {
+      display: block;
+      margin-top: 8px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    .tab-btn {
+      border: 0;
+      background: rgba(21, 50, 74, 0.08);
+      color: var(--ink);
+      padding: 12px 18px;
+      border-radius: 999px;
+      font-family: inherit;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: transform 180ms ease, background 180ms ease;
+    }
+
+    .tab-btn.active {
+      background: var(--ink);
+      color: #f6fbfb;
+      transform: translateY(-1px);
+    }
+
+    .tab-panel {
+      display: none;
+    }
+
+    .tab-panel.active {
+      display: block;
+    }
+
+    .content-grid {
+      display: grid;
+      gap: 18px;
+    }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: 0.95fr 1.05fr;
+      gap: 18px;
+    }
+
+    .three-col {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .panel-pad {
+      padding: 22px;
+    }
+
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+
+    .section-head h2,
+    .section-head h3 {
+      margin: 0;
+      font-size: 1.05rem;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+    }
+
+    .section-head p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .control-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .button,
+    .ghost-button,
+    .file-chip {
+      border: 0;
+      border-radius: 14px;
+      padding: 12px 16px;
+      font-family: inherit;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: transform 180ms ease, opacity 180ms ease;
+    }
+
+    .button {
+      background: var(--ink);
+      color: #f6fbfb;
+    }
+
+    .button.accent {
+      background: var(--coral);
+    }
+
+    .ghost-button {
+      background: rgba(21, 50, 74, 0.08);
+      color: var(--ink);
+    }
+
+    .button:hover,
+    .ghost-button:hover,
+    .tab-btn:hover,
+    .file-chip:hover {
+      transform: translateY(-1px);
+    }
+
+    .status {
+      padding: 12px 14px;
+      border-radius: 16px;
+      background: rgba(38, 121, 123, 0.08);
+      color: var(--ink);
+      border: 1px solid rgba(38, 121, 123, 0.12);
+      font-size: 0.92rem;
+      line-height: 1.55;
+    }
+
+    .status.warn {
+      background: rgba(239, 178, 78, 0.12);
+      border-color: rgba(239, 178, 78, 0.24);
+    }
+
+    .status.danger {
+      background: rgba(217, 93, 57, 0.12);
+      border-color: rgba(217, 93, 57, 0.22);
+    }
+
+    .stats-strip {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .stat-box {
+      padding: 16px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.66);
+      border: 1px solid var(--line);
+    }
+
+    .stat-box span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.84rem;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .stat-box strong {
+      font-size: 1.5rem;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .field {
+      display: grid;
+      gap: 8px;
+    }
+
+    .field label {
+      font-size: 0.84rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .field input {
+      width: 100%;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.88);
+      padding: 12px 12px;
+      border-radius: 14px;
+      font-family: inherit;
+      color: var(--ink);
+    }
+
+    .field select {
+      width: 100%;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.88);
+      padding: 12px 12px;
+      border-radius: 14px;
+      font-family: inherit;
+      color: var(--ink);
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 14px;
+      max-height: 460px;
+      overflow: auto;
+      padding-right: 6px;
+    }
+
+    .feature-card {
+      padding: 12px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.74);
+      border: 1px solid var(--line);
+    }
+
+    .feature-card label {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--muted);
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .feature-card input {
+      width: 100%;
+      padding: 10px 10px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      font-family: inherit;
+    }
+
+    .result-banner {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin: 16px 0;
+    }
+
+    .result-chip {
+      padding: 16px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.68);
+      border: 1px solid var(--line);
+    }
+
+    .result-chip span {
+      display: block;
+      font-size: 0.82rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+    }
+
+    .result-chip strong {
+      font-size: 1.4rem;
+    }
+
+    .chart {
+      width: 100%;
+      min-height: 320px;
+    }
+
+    .chart.tall {
+      min-height: 420px;
+    }
+
+    .table-wrap {
+      overflow: auto;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.72);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 760px;
+      font-size: 0.92rem;
+    }
+
+    th,
+    td {
+      padding: 12px 14px;
+      border-bottom: 1px solid rgba(21, 50, 74, 0.08);
+      text-align: left;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      background: rgba(247, 239, 227, 0.95);
+      color: var(--ink);
+      font-weight: 700;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(21, 50, 74, 0.08);
+      color: var(--ink);
+      font-size: 0.84rem;
+    }
+
+    .tag.high {
+      background: rgba(217, 93, 57, 0.14);
+      color: #8f2f15;
+    }
+
+    .tag.mid {
+      background: rgba(239, 178, 78, 0.18);
+      color: #7f5812;
+    }
+
+    .tag.low {
+      background: rgba(38, 121, 123, 0.12);
+      color: #1f5758;
+    }
+
+    .footnote {
+      color: var(--muted);
+      font-size: 0.88rem;
+      line-height: 1.65;
+    }
+
+    .file-line {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .file-line input[type="file"] {
+      max-width: 100%;
+    }
+
+    .registry-list {
+      display: grid;
+      gap: 12px;
+      max-height: 380px;
+      overflow: auto;
+    }
+
+    .registry-card {
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.72);
+      border: 1px solid var(--line);
+    }
+
+    .registry-card.active {
+      border-color: rgba(38, 121, 123, 0.35);
+      background: rgba(217, 241, 237, 0.88);
+    }
+
+    .registry-card strong {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 1rem;
+    }
+
+    .registry-card span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.88rem;
+      line-height: 1.5;
+    }
+
+    .micro-note {
+      color: var(--muted);
+      font-size: 0.84rem;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 1100px) {
+      .hero,
+      .two-col,
+      .three-col {
+        grid-template-columns: 1fr;
+      }
+
+      .metric-grid,
+      .stats-strip,
+      .mini-metrics,
+      .feature-grid,
+      .result-banner,
+      .form-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 700px) {
+      .shell {
+        width: min(100vw - 18px, 100%);
+        margin: 10px auto 24px;
+      }
+
+      .metric-grid,
+      .stats-strip,
+      .mini-metrics,
+      .feature-grid,
+      .result-banner,
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+
+      h1 {
+        font-size: 2.6rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <section class="hero">
+      <div class="panel hero-copy">
+        <div class="eyebrow">Single-file classifier + Kaggle fraud workflow</div>
+        <h1>Credit Card Fraud Detection Studio</h1>
+        <p class="lead">
+          One visually interactive HTML file that keeps the classification core intact: a pre-trained
+          <strong>Logistic Regression + SMOTE</strong> baseline built from the Kaggle credit-card fraud dataset.
+          Upload the same dataset for live charts, score individual transactions in-browser, run batch screening,
+          and optionally mirror logs to Firebase.
+        </p>
+        <div class="pill-row">
+          <div class="pill">Binary fraud classifier</div>
+          <div class="pill">PR-AUC driven evaluation</div>
+          <div class="pill">Client-side inference</div>
+          <div class="pill">Firebase logging fallback</div>
+        </div>
+      </div>
+      <aside class="panel hero-aside">
+        <h3>Global alert threshold</h3>
+        <div class="threshold-wrap">
+          <div class="threshold-value">
+            <strong id="thresholdBadge">0.50</strong>
+            <span>decision cutoff</span>
+          </div>
+          <input id="thresholdSlider" type="range" min="0.10" max="0.95" step="0.05" value="0.50">
+          <div class="threshold-note" id="thresholdNarrative">
+            At 0.50 the model favors recall and catches most fraud, but will raise more analyst reviews.
+          </div>
+        </div>
+        <div class="mini-metrics">
+          <div class="mini-card">
+            <span>PR-AUC</span>
+            <strong id="heroPrAuc">0.777</strong>
+          </div>
+          <div class="mini-card">
+            <span>Best F1 threshold</span>
+            <strong id="heroBestThreshold">0.95</strong>
+          </div>
+          <div class="mini-card">
+            <span>Fraud rows in Kaggle set</span>
+            <strong id="heroFraudRows">492</strong>
+          </div>
+          <div class="mini-card">
+            <span>Firebase status</span>
+            <strong id="firebaseInlineStatus">Starting</strong>
+          </div>
+        </div>
+      </aside>
+    </section>
+
+    <section class="metric-grid">
+      <div class="panel metric-card">
+        <span>Kaggle rows</span>
+        <strong id="metricRows">284,807</strong>
+        <small>Reference training dataset size used for the embedded model.</small>
+      </div>
+      <div class="panel metric-card">
+        <span>Fraud rate</span>
+        <strong id="metricFraudRate">0.173%</strong>
+        <small>Why accuracy is misleading and recall matters more.</small>
+      </div>
+      <div class="panel metric-card">
+        <span>Precision</span>
+        <strong id="metricPrecision">0.055</strong>
+        <small id="metricPrecisionNote">At the current threshold.</small>
+      </div>
+      <div class="panel metric-card">
+        <span>Recall</span>
+        <strong id="metricRecall">0.918</strong>
+        <small id="metricRecallNote">At the current threshold.</small>
+      </div>
+      <div class="panel metric-card">
+        <span>F1 score</span>
+        <strong id="metricF1">0.104</strong>
+        <small id="metricF1Note">Balanced view of precision and recall.</small>
+      </div>
+    </section>
+
+    <nav class="tabs">
+      <button class="tab-btn active" data-target="overviewPanel">Overview</button>
+      <button class="tab-btn" data-target="datasetPanel">Dataset Analyzer</button>
+      <button class="tab-btn" data-target="livePanel">Live Classifier</button>
+      <button class="tab-btn" data-target="batchPanel">Batch Monitor</button>
+      <button class="tab-btn" data-target="opsPanel">Ops Log</button>
+    </nav>
+
+    <section id="overviewPanel" class="tab-panel active">
+      <div class="content-grid">
+        <div class="two-col">
+          <div class="panel panel-pad">
+            <div class="section-head">
+              <div>
+                <h2>Threshold trade-off map</h2>
+                <p>Precision, recall, and F1 across the alert cutoff range.</p>
+              </div>
+              <div class="tag" id="selectedThresholdTag">Using threshold 0.50</div>
+            </div>
+            <div id="thresholdChart" class="chart"></div>
+          </div>
+          <div class="panel panel-pad">
+            <div class="section-head">
+              <div>
+                <h2>Most influential model features</h2>
+                <p>Largest positive and negative logistic-regression weights from the Kaggle training run.</p>
+              </div>
+            </div>
+            <div id="coefficientChart" class="chart"></div>
+          </div>
+        </div>
+        <div class="two-col">
+          <div class="panel panel-pad">
+            <div class="section-head">
+              <div>
+                <h2>Correlation cues from the original dataset</h2>
+                <p>Top features most aligned with the fraud label in the Kaggle data.</p>
+              </div>
+            </div>
+            <div id="correlationChart" class="chart"></div>
+          </div>
+          <div class="panel panel-pad">
+            <div class="section-head">
+              <div>
+                <h2>Deployment reality for a single HTML file</h2>
+                <p>What is secure here, and what is intentionally left out.</p>
+              </div>
+            </div>
+            <div class="status">
+              Firebase web config is included because it is designed for client apps. Your Grok key is
+              <strong>not embedded</strong> because a standalone HTML file cannot protect secret API keys.
+              The classifier, threshold tuning, single-transaction scoring, and batch screening all work without any backend.
+            </div>
+            <div class="stats-strip">
+              <div class="stat-box">
+                <span>Model family</span>
+                <strong>Logistic Regression</strong>
+              </div>
+              <div class="stat-box">
+                <span>Imbalance fix</span>
+                <strong>SMOTE</strong>
+              </div>
+              <div class="stat-box">
+                <span>Scaling</span>
+                <strong>RobustScaler</strong>
+              </div>
+              <div class="stat-box">
+                <span>Target metric</span>
+                <strong>PR-AUC</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="datasetPanel" class="tab-panel">
+      <div class="content-grid">
+        <div class="panel panel-pad">
+          <div class="section-head">
+            <div>
+              <h2>Load the Kaggle dataset</h2>
+              <p>Upload <code>creditcard.csv</code> or another same-schema fraud dataset to generate live charts and optionally train a custom browser-side classifier.</p>
+            </div>
+          </div>
+          <div class="file-line">
+            <input type="file" id="datasetUpload" accept=".csv,.zip">
+            <button class="button" id="analyzeDatasetBtn">Analyze dataset</button>
+            <button class="ghost-button" id="reuseBatchBtn">Use loaded dataset as batch input</button>
+          </div>
+          <div id="datasetStatus" class="status warn">
+            No dataset loaded yet. The reference metrics above come from the same Kaggle dataset used to train the embedded model.
+          </div>
+          <div class="stats-strip" id="datasetStats">
+            <div class="stat-box"><span>Rows</span><strong>-</strong></div>
+            <div class="stat-box"><span>Fraud rows</span><strong>-</strong></div>
+            <div class="stat-box"><span>Fraud rate</span><strong>-</strong></div>
+            <div class="stat-box"><span>Median amount</span><strong>-</strong></div>
+          </div>
+        </div>
+        <div class="three-col">
+          <div class="panel panel-pad">
+            <div class="section-head">
+              <div>
+                <h3>Class distribution</h3>
+              </div>
+            </div>
+            <div id="datasetClassChart" class="chart"></div>
+          </div>
+          <div class="panel panel-pad">
+            <div class="section-head">
+              <div>
+                <h3>Fraud by hour</h3>
+              </div>
+            </div>
+            <div id="datasetHourChart" class="chart"></div>
+          </div>
+          <div class="panel panel-pad">
+            <div class="section-head">
+              <div>
+                <h3>Top uploaded correlations</h3>
+              </div>
+            </div>
+            <div id="datasetCorrelationChart" class="chart"></div>
+          </div>
+        </div>
+        <div class="two-col">
+          <div class="panel panel-pad">
+            <div class="section-head">
+              <div>
+                <h3>Train a custom classifier</h3>
+                <p>Use the loaded labeled dataset to train a browser-side logistic-regression model with class balancing and then use it throughout the app.</p>
+              </div>
+            </div>
+            <div class="form-grid">
+              <div class="field">
+                <label for="customDatasetName">Model name</label>
+                <input id="customDatasetName" type="text" value="Custom Fraud Model">
+              </div>
+              <div class="field">
+                <label for="customTrainCap">Training row cap</label>
+                <input id="customTrainCap" type="number" value="12000" min="1000" step="1000">
+              </div>
+              <div class="field">
+                <label for="activeModelSelectDataset">Active model</label>
+                <select id="activeModelSelectDataset"></select>
+              </div>
+            </div>
+            <div class="control-row">
+              <button class="button accent" id="trainCustomModelBtn">Train model from loaded dataset</button>
+              <button class="ghost-button" id="activateBaseModelBtn">Switch to Kaggle baseline</button>
+              <button class="ghost-button" id="deleteCustomModelBtn">Delete selected custom model</button>
+            </div>
+            <div id="customModelStatus" class="status warn">
+              Load a labeled same-schema dataset first. Once analyzed, you can train a custom classifier and reuse the same simulator and batch-monitor features with it.
+            </div>
+            <div class="stats-strip" id="customModelStats">
+              <div class="stat-box"><span>Active model</span><strong>Embedded Kaggle</strong></div>
+              <div class="stat-box"><span>Rows used</span><strong>-</strong></div>
+              <div class="stat-box"><span>PR-AUC</span><strong>-</strong></div>
+              <div class="stat-box"><span>Recall</span><strong>-</strong></div>
+            </div>
+          </div>
+          <div class="panel panel-pad">
+            <div class="section-head">
+              <div>
+                <h3>Saved model registry</h3>
+                <p>Saved custom models stay in browser storage and can also be mirrored to Firebase when Firestore writes are enabled.</p>
+              </div>
+            </div>
+            <div id="modelRegistryList" class="registry-list"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="livePanel" class="tab-panel">
+      <div class="content-grid">
+        <div class="two-col">
+          <div class="panel panel-pad">
+            <div class="section-head">
+              <div>
+                <h2>Single transaction simulator</h2>
+                <p>Adjust <code>Time</code>, <code>Amount</code>, and the anonymized PCA features to score a new transaction.</p>
+              </div>
+            </div>
+            <div class="form-grid">
+              <div class="field">
+                <label for="activeModelSelect">Active classifier</label>
+                <select id="activeModelSelect"></select>
+              </div>
+              <div class="field">
+                <label for="activeModelSource">Model source</label>
+                <input id="activeModelSource" type="text" disabled>
+              </div>
+              <div class="field">
+                <label for="activeModelMetric">Model PR-AUC</label>
+                <input id="activeModelMetric" type="text" disabled>
+              </div>
+            </div>
+            <div class="control-row">
+              <button class="button" id="scoreTxnBtn">Score transaction</button>
+              <button class="ghost-button" id="medianProfileBtn">Load median profile</button>
+              <button class="ghost-button" id="fraudProfileBtn">Load fraud-leaning profile</button>
+              <button class="ghost-button" id="safeProfileBtn">Load safer profile</button>
+            </div>
+            <div class="form-grid">
+              <div class="field">
+                <label for="fieldTime">Time (seconds)</label>
+                <input id="fieldTime" type="number" step="1">
+              </div>
+              <div class="field">
+                <label for="fieldAmount">Amount</label>
+                <input id="fieldAmount" type="number" step="0.01" min="0">
+              </div>
+              <div class="field">
+                <label for="derivedHour">Derived hour</label>
+                <input id="derivedHour" type="number" step="1" disabled>
+              </div>
+            </div>
+            <div id="liveStatus" class="status">
+              The Kaggle dataset is anonymized, so the model still needs the PCA-derived features <code>V1</code>-<code>V28</code>. The defaults below are medians from the original dataset.
+            </div>
+            <div id="featureGrid" class="feature-grid"></div>
+          </div>
+          <div class="panel panel-pad">
+            <div class="section-head">
+              <div>
+                <h2>Prediction readout</h2>
+                <p>Fraud probability, risk band, and feature contribution breakdown.</p>
+              </div>
+            </div>
+            <div class="result-banner">
+              <div class="result-chip">
+                <span>Fraud probability</span>
+                <strong id="probabilityValue">-</strong>
+              </div>
+              <div class="result-chip">
+                <span>Predicted class</span>
+                <strong id="classValue">-</strong>
+              </div>
+              <div class="result-chip">
+                <span>Risk band</span>
+                <strong id="bandValue">-</strong>
+              </div>
+            </div>
+            <div id="gaugeChart" class="chart"></div>
+            <div id="contributionChart" class="chart tall"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="batchPanel" class="tab-panel">
+      <div class="content-grid">
+        <div class="panel panel-pad">
+          <div class="section-head">
+            <div>
+              <h2>Batch screening</h2>
+              <p>Upload any CSV or ZIP matching the Kaggle schema, or screen the dataset currently loaded in the analyzer tab.</p>
+            </div>
+          </div>
+          <div class="file-line">
+            <input type="file" id="batchUpload" accept=".csv,.zip">
+            <button class="button accent" id="screenBatchBtn">Run batch screen</button>
+            <button class="ghost-button" id="downloadBatchBtn">Download scored CSV</button>
+          </div>
+          <div id="batchStatus" class="status warn">
+            No batch screened yet. If your file includes a <code>Class</code> column, this page will also compute precision, recall, and F1 against the true labels.
+          </div>
+          <div class="stats-strip" id="batchStats">
+            <div class="stat-box"><span>Rows screened</span><strong>-</strong></div>
+            <div class="stat-box"><span>Alerts raised</span><strong>-</strong></div>
+            <div class="stat-box"><span>Average score</span><strong>-</strong></div>
+            <div class="stat-box"><span>Precision / Recall</span><strong>-</strong></div>
+          </div>
+        </div>
+        <div class="two-col">
+          <div class="panel panel-pad">
+            <div class="section-head">
+              <div>
+                <h3>Batch risk map</h3>
+              </div>
+            </div>
+            <div id="batchScatterChart" class="chart"></div>
+          </div>
+          <div class="panel panel-pad">
+            <div class="section-head">
+              <div>
+                <h3>Flagged transactions</h3>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table id="batchTable">
+                <thead>
+                  <tr>
+                    <th>Rank</th>
+                    <th>Amount</th>
+                    <th>Time</th>
+                    <th>Hour</th>
+                    <th>Score</th>
+                    <th>Prediction</th>
+                    <th>Actual</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="opsPanel" class="tab-panel">
+      <div class="content-grid">
+        <div class="two-col">
+          <div class="panel panel-pad">
+            <div class="section-head">
+              <div>
+                <h2>Storage and Firebase log</h2>
+                <p>Client-side logging uses Firebase when available, and local storage as a built-in fallback.</p>
+              </div>
+            </div>
+            <div id="firebaseStatus" class="status">Initializing Firebase...</div>
+            <div class="stats-strip">
+              <div class="stat-box">
+                <span>Firebase mode</span>
+                <strong id="firebaseMode">Connecting</strong>
+              </div>
+              <div class="stat-box">
+                <span>Local history items</span>
+                <strong id="historyCount">0</strong>
+              </div>
+              <div class="stat-box">
+                <span>Custom models</span>
+                <strong id="customModelCount">0</strong>
+              </div>
+              <div class="stat-box">
+                <span>Active classifier</span>
+                <strong id="opsActiveModel">Embedded Kaggle</strong>
+              </div>
+            </div>
+            <p class="footnote">
+              Firebase web config can safely live in a client app, but secret API keys cannot. That is why this file keeps
+              the classifier local, uses Firebase only for optional logging, and intentionally avoids embedding your Grok key.
+            </p>
+          </div>
+          <div class="panel panel-pad">
+            <div class="section-head">
+              <div>
+                <h2>Recent local event history</h2>
+                <p>Most recent classification and dataset actions captured in browser storage.</p>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table id="historyTable">
+                <thead>
+                  <tr>
+                    <th>Time</th>
+                    <th>Event</th>
+                    <th>Summary</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script id="modelData" type="application/json">
+    {
+      "feature_order": ["Time", "Amount", "Hour", "V1", "V2", "V3", "V4", "V5", "V6", "V7", "V8", "V9", "V10", "V11", "V12", "V13", "V14", "V15", "V16", "V17", "V18", "V19", "V20", "V21", "V22", "V23", "V24", "V25", "V26", "V27", "V28"],
+      "intercept": -4.599123033822963,
+      "coefficients": [-2.238960661325074, 0.5663647131489072, 1.4020397691444806, 0.9909509080936351, 0.38151286918240246, 0.08407476051140247, 1.1691490972683862, 0.975559077520412, -0.4880344700977294, -0.38880464976464585, -0.6539551026440255, -0.5375947457573728, -1.5868014950635356, 0.5275228597217656, -1.3969593952656225, -0.3856721345107037, -1.7483207213849636, -0.24940130431768043, -1.2743463283884566, -1.4089305074195035, -0.20597704120381324, 0.3247416718568569, -1.2655856938105876, 0.19921586143069145, 0.8533080523843196, 0.4488812126996002, -0.11058032917130502, -0.34223385661791583, -0.6176920783864027, -0.3667104736968109, 0.8621259352921132],
+      "robust_center": [84805.0, 22.0, 15.0],
+      "robust_scale": [85136.0, 71.85, 9.0],
+      "metrics": {
+        "pr_auc": 0.777425980170845,
+        "average_precision": 0.7311699091631221,
+        "precision": 0.05504587155963303,
+        "recall": 0.9183673469387755,
+        "f1": 0.10386612810155799,
+        "best_threshold": 0.95
+      },
+      "threshold_table": [
+        {"threshold": 0.1, "precision": 0.009061987853080112, "recall": 0.9591836734693877, "f1": 0.01795435010982714, "alerts": 10373},
+        {"threshold": 0.15, "precision": 0.012827663134411601, "recall": 0.9387755102040817, "f1": 0.02530949105914718, "alerts": 7172},
+        {"threshold": 0.2, "precision": 0.017110266159695818, "recall": 0.9183673469387755, "f1": 0.0335946248600224, "alerts": 5260},
+        {"threshold": 0.25, "precision": 0.02245508982035928, "recall": 0.9183673469387755, "f1": 0.043838285435947394, "alerts": 4008},
+        {"threshold": 0.3, "precision": 0.028680688336520075, "recall": 0.9183673469387755, "f1": 0.05562422744128554, "alerts": 3138},
+        {"threshold": 0.35, "precision": 0.03495145631067961, "recall": 0.9183673469387755, "f1": 0.06734006734006734, "alerts": 2575},
+        {"threshold": 0.4, "precision": 0.04157043879907621, "recall": 0.9183673469387755, "f1": 0.07954043305346885, "alerts": 2165},
+        {"threshold": 0.45, "precision": 0.04769475357710652, "recall": 0.9183673469387755, "f1": 0.0906801007556675, "alerts": 1887},
+        {"threshold": 0.5, "precision": 0.05504587155963303, "recall": 0.9183673469387755, "f1": 0.10386612810155799, "alerts": 1635},
+        {"threshold": 0.55, "precision": 0.06378454996456413, "recall": 0.9183673469387755, "f1": 0.11928429423459244, "alerts": 1411},
+        {"threshold": 0.6, "precision": 0.07385892116182573, "recall": 0.9081632653061225, "f1": 0.13660782808902533, "alerts": 1205},
+        {"threshold": 0.65, "precision": 0.0866601752677702, "recall": 0.9081632653061225, "f1": 0.1582222222222222, "alerts": 1027},
+        {"threshold": 0.7, "precision": 0.10090702947845805, "recall": 0.9081632653061225, "f1": 0.1816326530612245, "alerts": 882},
+        {"threshold": 0.75, "precision": 0.11538461538461539, "recall": 0.8877551020408163, "f1": 0.20422535211267606, "alerts": 754},
+        {"threshold": 0.8, "precision": 0.1359375, "recall": 0.8877551020408163, "f1": 0.23577235772357724, "alerts": 640},
+        {"threshold": 0.85, "precision": 0.16051660516605165, "recall": 0.8877551020408163, "f1": 0.271875, "alerts": 542},
+        {"threshold": 0.9, "precision": 0.1851063829787234, "recall": 0.8877551020408163, "f1": 0.30633802816901406, "alerts": 470},
+        {"threshold": 0.95, "precision": 0.22955145118733508, "recall": 0.8877551020408163, "f1": 0.36477987421383645, "alerts": 379}
+      ],
+      "top_correlations": [
+        {"feature": "V17", "correlation": -0.32648106724371595},
+        {"feature": "V14", "correlation": -0.3025436958044028},
+        {"feature": "V12", "correlation": -0.26059292487722485},
+        {"feature": "V10", "correlation": -0.21688294364103206},
+        {"feature": "V16", "correlation": -0.19653894030401736},
+        {"feature": "V3", "correlation": -0.19296082706741602},
+        {"feature": "V7", "correlation": -0.18725659151430013},
+        {"feature": "V11", "correlation": 0.15487564474394433},
+        {"feature": "V4", "correlation": 0.13344748623900718},
+        {"feature": "V18", "correlation": -0.11148525388904133},
+        {"feature": "V1", "correlation": -0.10134729859508294},
+        {"feature": "V9", "correlation": -0.0977326860740807}
+      ],
+      "coefficient_view": [
+        {"feature": "Hour", "coefficient": 1.4020397691444806},
+        {"feature": "V4", "coefficient": 1.1691490972683862},
+        {"feature": "V1", "coefficient": 0.9909509080936351},
+        {"feature": "V5", "coefficient": 0.975559077520412},
+        {"feature": "V28", "coefficient": 0.8621259352921132},
+        {"feature": "V22", "coefficient": 0.8533080523843196},
+        {"feature": "Amount", "coefficient": 0.5663647131489072},
+        {"feature": "V11", "coefficient": 0.5275228597217656},
+        {"feature": "V23", "coefficient": 0.4488812126996002},
+        {"feature": "V2", "coefficient": 0.38151286918240246},
+        {"feature": "V19", "coefficient": 0.3247416718568569},
+        {"feature": "V21", "coefficient": 0.19921586143069145},
+        {"feature": "V7", "coefficient": -0.38880464976464585},
+        {"feature": "V6", "coefficient": -0.4880344700977294},
+        {"feature": "V9", "coefficient": -0.5375947457573728},
+        {"feature": "V26", "coefficient": -0.6176920783864027},
+        {"feature": "V8", "coefficient": -0.6539551026440255},
+        {"feature": "V20", "coefficient": -1.2655856938105876},
+        {"feature": "V16", "coefficient": -1.2743463283884566},
+        {"feature": "V12", "coefficient": -1.3969593952656225},
+        {"feature": "V17", "coefficient": -1.4089305074195035},
+        {"feature": "V10", "coefficient": -1.5868014950635356},
+        {"feature": "V14", "coefficient": -1.7483207213849636},
+        {"feature": "Time", "coefficient": -2.238960661325074}
+      ],
+      "dataset_summary": {
+        "rows": 284807,
+        "fraud_count": 492,
+        "fraud_rate": 0.001727485630620034,
+        "median_amount": 22.0,
+        "max_amount": 25691.16
+      },
+      "feature_defaults": {
+        "Time": 84692.0, "Amount": 22.0, "Hour": 15, "V1": 0.0181087991615309, "V2": 0.0654855563960555, "V3": 0.179846343563544, "V4": -0.0198465294811989,
+        "V5": -0.0543358267364858, "V6": -0.274187076506651, "V7": 0.0401030827945351, "V8": 0.0223580364366631, "V9": -0.051428731550349,
+        "V10": -0.0929173835961975, "V11": -0.032757354499007, "V12": 0.140032588291332, "V13": -0.0135680567852071, "V14": 0.0506013193100486,
+        "V15": 0.0480715497626106, "V16": 0.0664133205843014, "V17": -0.0656757538072252, "V18": -0.0036363123546992, "V19": 0.0037348229952574,
+        "V20": -0.0624810924603664, "V21": -0.0294501676953819, "V22": 0.0067819425282695, "V23": -0.0111929302967212, "V24": 0.0409760560572798,
+        "V25": 0.0165935016367397, "V26": -0.0521391080182019, "V27": 0.0013421459786502, "V28": 0.011243831564982
+      },
+      "feature_bounds": {
+        "Time": [2422.0, 170560.94], "Amount": [0.0, 1017.9700000000012], "V1": [-6.563199367975695, 2.2371297107185684], "V2": [-4.960299775870282, 3.8018111875455967],
+        "V3": [-3.9783766729321917, 2.7284341351067267], "V4": [-3.1229866977624177, 4.24803168084698], "V5": [-3.060395601035203, 3.424903247927218],
+        "V6": [-2.1240234752350706, 4.2000845419901225], "V7": [-3.0128469333182775, 2.696204877243935], "V8": [-4.033898638159909, 2.0759726954328475],
+        "V9": [-2.4552876277454883, 2.98677287918511], "V10": [-2.092670260400395, 3.253617782852747], "V11": [-2.093085630866775, 2.2905832111973647],
+        "V12": [-3.0639379672477127, 1.6985760504969996], "V13": [-2.283101123685287, 2.5139615125133257], "V14": [-2.799763319012843, 2.1502995665046174],
+        "V15": [-2.3839226240415567, 1.9255268208169418], "V16": [-2.3818233645556277, 1.8748200840288225], "V17": [-1.3499623067772466, 2.2899284612083664],
+        "V18": [-2.147067135988477, 2.0686893120433445], "V19": [-2.075515694063516, 2.262924084576236], "V20": [-1.5684060523262064, 2.4121903022106173],
+        "V21": [-1.4696788514011414, 1.9318524327300843], "V22": [-1.6546253473553778, 1.5301519061425417], "V23": [-1.1934172429862033, 1.5087027358213538],
+        "V24": [-1.657307676998728, 1.0637483972738069], "V25": [-1.4208585916439036, 1.2039552097395416], "V26": [-1.009383838557739, 1.1586978535480066],
+        "V27": [-1.2477459213049733, 0.9313603753057182], "V28": [-0.8762654256536463, 0.5411263704880604]
+      }
+    }
+  </script>
+
+  <script>
+    const BASE_MODEL_PAYLOAD = JSON.parse(document.getElementById("modelData").textContent);
+    const HISTORY_KEY = "fraud_html_event_history_v1";
+    const MODEL_REGISTRY_KEY = "fraud_html_model_registry_v1";
+    const BASE_MODEL_ID = "embedded-kaggle-baseline";
+    const PCA_FEATURES = Array.from({ length: 28 }, (_, index) => `V${index + 1}`);
+    const FIREBASE_CONFIG = {
+      apiKey: "AIzaSyBMhpYO5J7760Do0HVWi0YuW1SRqI2UM8Y",
+      authDomain: "credit-card-fraud-detect-9c0fa.firebaseapp.com",
+      projectId: "credit-card-fraud-detect-9c0fa",
+      storageBucket: "credit-card-fraud-detect-9c0fa.firebasestorage.app",
+      messagingSenderId: "490697904175",
+      appId: "1:490697904175:web:e64bf77cf386a7cc70f6da",
+      measurementId: "G-G86LNC3BTG"
+    };
+
+    const state = {
+      firestore: null,
+      datasetRows: null,
+      batchRows: null,
+      batchResults: null,
+      currentPrediction: null,
+      baseModel: null,
+      customModels: [],
+      activeModel: null
+    };
+
+    function deepClone(value) {
+      return JSON.parse(JSON.stringify(value));
+    }
+
+    function formatNumber(value, digits = 0) {
+      return Number(value || 0).toLocaleString(undefined, {
+        minimumFractionDigits: digits,
+        maximumFractionDigits: digits
+      });
+    }
+
+    function formatPercent(value, digits = 1) {
+      return `${(Number(value || 0) * 100).toFixed(digits)}%`;
+    }
+
+    function toNumber(value, fallback = 0) {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : fallback;
+    }
+
+    function sigmoid(value) {
+      return 1 / (1 + Math.exp(-value));
+    }
+
+    function computeHour(seconds) {
+      const safe = Math.max(0, Math.floor(toNumber(seconds, BASE_MODEL_PAYLOAD.feature_defaults.Time)));
+      return ((Math.floor(safe / 3600) % 24) + 24) % 24;
+    }
+
+    function shuffleInPlace(items) {
+      for (let index = items.length - 1; index > 0; index -= 1) {
+        const swapIndex = Math.floor(Math.random() * (index + 1));
+        [items[index], items[swapIndex]] = [items[swapIndex], items[index]];
+      }
+      return items;
+    }
+
+    function quantile(values, probability) {
+      if (!values.length) return 0;
+      const sorted = values.slice().sort((a, b) => a - b);
+      const position = (sorted.length - 1) * probability;
+      const lower = Math.floor(position);
+      const upper = Math.ceil(position);
+      if (lower === upper) return sorted[lower];
+      const weight = position - lower;
+      return sorted[lower] * (1 - weight) + sorted[upper] * weight;
+    }
+
+    function pearson(xs, ys) {
+      if (!xs.length || xs.length !== ys.length) return 0;
+      const xMean = xs.reduce((sum, value) => sum + value, 0) / xs.length;
+      const yMean = ys.reduce((sum, value) => sum + value, 0) / ys.length;
+      let numerator = 0;
+      let xDen = 0;
+      let yDen = 0;
+      for (let index = 0; index < xs.length; index += 1) {
+        const xDiff = xs[index] - xMean;
+        const yDiff = ys[index] - yMean;
+        numerator += xDiff * yDiff;
+        xDen += xDiff * xDiff;
+        yDen += yDiff * yDiff;
+      }
+      return xDen && yDen ? numerator / Math.sqrt(xDen * yDen) : 0;
+    }
+
+    function buildCoefficientView(featureOrder, coefficients) {
+      return featureOrder.map((feature, index) => ({
+        feature,
+        coefficient: coefficients[index],
+        magnitude: Math.abs(coefficients[index])
+      })).sort((a, b) => a.coefficient - b.coefficient);
+    }
+
+    function serializeModel(model) {
+      return {
+        id: model.id,
+        name: model.name,
+        sourceType: model.sourceType,
+        createdAt: model.createdAt,
+        feature_order: model.feature_order,
+        intercept: model.intercept,
+        coefficients: model.coefficients,
+        robust_center: model.robust_center,
+        robust_scale: model.robust_scale,
+        metrics: model.metrics,
+        threshold_table: model.threshold_table,
+        top_correlations: model.top_correlations,
+        coefficient_view: model.coefficient_view,
+        dataset_summary: model.dataset_summary,
+        feature_defaults: model.feature_defaults,
+        feature_bounds: model.feature_bounds,
+        training_summary: model.training_summary
+      };
+    }
+
+    function hydrateModel(payload, meta = {}) {
+      return {
+        id: meta.id || payload.id || `model-${Date.now()}`,
+        name: meta.name || payload.name || "Custom Fraud Model",
+        sourceType: meta.sourceType || payload.sourceType || "custom",
+        createdAt: meta.createdAt || payload.createdAt || new Date().toISOString(),
+        feature_order: payload.feature_order || BASE_MODEL_PAYLOAD.feature_order,
+        intercept: payload.intercept,
+        coefficients: payload.coefficients,
+        robust_center: payload.robust_center,
+        robust_scale: payload.robust_scale,
+        metrics: {
+          pr_auc: 0,
+          average_precision: 0,
+          precision: 0,
+          recall: 0,
+          f1: 0,
+          best_threshold: 0.5,
+          ...(payload.metrics || {})
+        },
+        threshold_table: payload.threshold_table || [],
+        top_correlations: payload.top_correlations || [],
+        coefficient_view: payload.coefficient_view || buildCoefficientView(payload.feature_order, payload.coefficients),
+        dataset_summary: payload.dataset_summary || {},
+        feature_defaults: payload.feature_defaults || deepClone(BASE_MODEL_PAYLOAD.feature_defaults),
+        feature_bounds: payload.feature_bounds || deepClone(BASE_MODEL_PAYLOAD.feature_bounds),
+        training_summary: payload.training_summary || {}
+      };
+    }
+
+    function getAllModels() {
+      return [state.baseModel, ...state.customModels].filter(Boolean);
+    }
+
+    function getActiveModel() {
+      return state.activeModel || state.baseModel;
+    }
+
+    function findModel(modelId) {
+      return getAllModels().find((model) => model.id === modelId) || state.baseModel;
+    }
+
+    function persistCustomModels() {
+      const payload = state.customModels.map((model) => serializeModel(model));
+      localStorage.setItem(MODEL_REGISTRY_KEY, JSON.stringify(payload));
+    }
+
+    function loadSavedModels() {
+      try {
+        const raw = JSON.parse(localStorage.getItem(MODEL_REGISTRY_KEY) || "[]");
+        if (!Array.isArray(raw)) return [];
+        return raw.map((payload) => hydrateModel(payload, payload));
+      } catch (error) {
+        return [];
+      }
+    }
+
+    function getThreshold() {
+      return Number(document.getElementById("thresholdSlider").value);
+    }
+
+    function getThresholdRecord(threshold, model = getActiveModel()) {
+      const table = model.threshold_table || [];
+      return table.find((row) => Math.abs(row.threshold - threshold) < 0.00001) || table[8] || {
+        threshold,
+        precision: model.metrics.precision || 0,
+        recall: model.metrics.recall || 0,
+        f1: model.metrics.f1 || 0,
+        alerts: 0
+      };
+    }
+
+    function riskBand(probability) {
+      if (probability >= 0.7) return "High";
+      if (probability >= 0.35) return "Elevated";
+      return "Low";
+    }
+
+    function riskClass(probability) {
+      if (probability >= 0.7) return "high";
+      if (probability >= 0.35) return "mid";
+      return "low";
+    }
+
+    function normalizedVector(transaction, model = getActiveModel()) {
+      const time = (transaction.Time - model.robust_center[0]) / (model.robust_scale[0] || 1);
+      const amount = (transaction.Amount - model.robust_center[1]) / (model.robust_scale[1] || 1);
+      const hour = (transaction.Hour - model.robust_center[2]) / (model.robust_scale[2] || 1);
+      return [
+        time,
+        amount,
+        hour,
+        ...PCA_FEATURES.map((feature) => transaction[feature])
+      ];
+    }
+
+    function scoreTransaction(transaction, threshold, model = getActiveModel()) {
+      const vector = normalizedVector(transaction, model);
+      const weighted = vector.map((value, index) => value * model.coefficients[index]);
+      const logit = model.intercept + weighted.reduce((sum, value) => sum + value, 0);
+      const probability = sigmoid(logit);
+      const predictedClass = probability >= threshold ? 1 : 0;
+      const contributions = model.feature_order.map((feature, index) => ({
+        feature,
+        contribution: weighted[index],
+        value: vector[index]
+      })).sort((a, b) => Math.abs(b.contribution) - Math.abs(a.contribution));
+      return {
+        probability,
+        predictedClass,
+        band: riskBand(probability),
+        logit,
+        contributions
+      };
+    }
+
+    function buildProfile(mode, model = getActiveModel()) {
+      const profile = deepClone(model.feature_defaults);
+      if (mode === "median") {
+        return profile;
+      }
+      const fraudLean = mode === "fraud";
+      model.feature_order.forEach((feature, index) => {
+        if (!(feature in model.feature_bounds)) return;
+        const bounds = model.feature_bounds[feature];
+        const coeff = model.coefficients[index];
+        const favored = fraudLean
+          ? (coeff >= 0 ? bounds[1] : bounds[0])
+          : (coeff >= 0 ? bounds[0] : bounds[1]);
+        const base = model.feature_defaults[feature];
+        profile[feature] = Number((base * 0.35 + favored * 0.65).toFixed(6));
+      });
+      profile.Time = fraudLean ? model.feature_bounds.Time[0] : model.feature_defaults.Time;
+      profile.Amount = fraudLean ? model.feature_bounds.Amount[1] * 0.55 : model.feature_defaults.Amount;
+      profile.Hour = fraudLean ? 23 : 13;
+      return profile;
+    }
+
+    function setFormProfile(profile) {
+      document.getElementById("fieldTime").value = profile.Time;
+      document.getElementById("fieldAmount").value = profile.Amount;
+      document.getElementById("derivedHour").value = computeHour(profile.Time);
+      PCA_FEATURES.forEach((feature) => {
+        const input = document.getElementById(`feature-${feature}`);
+        if (input) input.value = profile[feature];
+      });
+    }
+
+    function getFormTransaction() {
+      const model = getActiveModel();
+      const time = toNumber(document.getElementById("fieldTime").value, model.feature_defaults.Time);
+      const amount = Math.max(0, toNumber(document.getElementById("fieldAmount").value, model.feature_defaults.Amount));
+      const transaction = { Time: time, Amount: amount, Hour: computeHour(time) };
+      PCA_FEATURES.forEach((feature) => {
+        transaction[feature] = toNumber(document.getElementById(`feature-${feature}`).value, model.feature_defaults[feature]);
+      });
+      document.getElementById("derivedHour").value = transaction.Hour;
+      return transaction;
+    }
+
+    function renderHeroAndMetrics() {
+      const model = getActiveModel();
+      document.getElementById("heroPrAuc").textContent = (model.metrics.pr_auc || 0).toFixed(3);
+      document.getElementById("heroBestThreshold").textContent = (model.metrics.best_threshold || 0.5).toFixed(2);
+      document.getElementById("heroFraudRows").textContent = formatNumber(model.dataset_summary.fraud_count || 0);
+      document.getElementById("metricRows").textContent = formatNumber(model.dataset_summary.rows || 0);
+      document.getElementById("metricFraudRate").textContent = formatPercent(model.dataset_summary.fraud_rate || 0, 3);
+      document.getElementById("activeModelSource").value = model.sourceType === "embedded" ? "Embedded Kaggle baseline" : "Custom uploaded dataset";
+      document.getElementById("activeModelMetric").value = (model.metrics.pr_auc || 0).toFixed(3);
+      document.getElementById("opsActiveModel").textContent = model.name;
+    }
+
+    function renderThresholdState() {
+      const threshold = getThreshold();
+      const model = getActiveModel();
+      const record = getThresholdRecord(threshold, model);
+      document.getElementById("thresholdBadge").textContent = threshold.toFixed(2);
+      document.getElementById("selectedThresholdTag").textContent = `Using threshold ${threshold.toFixed(2)}`;
+      document.getElementById("metricPrecision").textContent = (record.precision || 0).toFixed(3);
+      document.getElementById("metricRecall").textContent = (record.recall || 0).toFixed(3);
+      document.getElementById("metricF1").textContent = (record.f1 || 0).toFixed(3);
+      document.getElementById("thresholdNarrative").textContent =
+        `Using ${model.name}, threshold ${threshold.toFixed(2)} yields precision ${(record.precision || 0).toFixed(3)}, ` +
+        `recall ${(record.recall || 0).toFixed(3)}, and roughly ${formatNumber(record.alerts || 0)} flagged rows on that model's evaluation split.`;
+      if (state.currentPrediction) renderPrediction(state.currentPrediction.transaction, false);
+      if (state.batchRows) renderBatchResults(state.batchRows, false);
+    }
+
+    function renderOverviewCharts() {
+      const model = getActiveModel();
+      const thresholdData = model.threshold_table || [];
+      Plotly.newPlot("thresholdChart", [
+        {
+          x: thresholdData.map((row) => row.threshold),
+          y: thresholdData.map((row) => row.precision),
+          mode: "lines+markers",
+          name: "Precision",
+          line: { color: "#d95d39", width: 3 }
+        },
+        {
+          x: thresholdData.map((row) => row.threshold),
+          y: thresholdData.map((row) => row.recall),
+          mode: "lines+markers",
+          name: "Recall",
+          line: { color: "#26797b", width: 3 }
+        },
+        {
+          x: thresholdData.map((row) => row.threshold),
+          y: thresholdData.map((row) => row.f1),
+          mode: "lines+markers",
+          name: "F1",
+          line: { color: "#efb24e", width: 3 }
+        }
+      ], {
+        margin: { t: 20, r: 10, b: 42, l: 44 },
+        paper_bgcolor: "rgba(0,0,0,0)",
+        plot_bgcolor: "rgba(255,255,255,0.3)",
+        xaxis: { title: "Threshold" },
+        yaxis: { title: "Score", tickformat: ".2f" },
+        legend: { orientation: "h", y: 1.12 }
+      }, { responsive: true, displayModeBar: false });
+
+      const coefficientView = (model.coefficient_view || []).slice().sort((a, b) => a.coefficient - b.coefficient);
+      Plotly.newPlot("coefficientChart", [{
+        type: "bar",
+        orientation: "h",
+        x: coefficientView.map((row) => row.coefficient),
+        y: coefficientView.map((row) => row.feature),
+        marker: {
+          color: coefficientView.map((row) => row.coefficient),
+          colorscale: "RdBu",
+          reversescale: true
+        },
+        hovertemplate: "%{y}: %{x:.3f}<extra></extra>"
+      }], {
+        margin: { t: 20, r: 10, b: 42, l: 78 },
+        paper_bgcolor: "rgba(0,0,0,0)",
+        plot_bgcolor: "rgba(255,255,255,0.3)",
+        xaxis: { title: "Coefficient weight" }
+      }, { responsive: true, displayModeBar: false });
+
+      Plotly.newPlot("correlationChart", [{
+        type: "bar",
+        x: (model.top_correlations || []).map((row) => row.feature),
+        y: (model.top_correlations || []).map((row) => row.correlation),
+        marker: {
+          color: (model.top_correlations || []).map((row) => row.correlation),
+          colorscale: "RdBu",
+          reversescale: true
+        },
+        hovertemplate: "%{x}: %{y:.3f}<extra></extra>"
+      }], {
+        margin: { t: 20, r: 10, b: 42, l: 44 },
+        paper_bgcolor: "rgba(0,0,0,0)",
+        plot_bgcolor: "rgba(255,255,255,0.3)",
+        yaxis: { title: "Correlation with Class" }
+      }, { responsive: true, displayModeBar: false });
+    }
+
+    function renderPrediction(transaction, shouldLog = true) {
+      const threshold = getThreshold();
+      const result = scoreTransaction(transaction, threshold, getActiveModel());
+      state.currentPrediction = { transaction, result };
+
+      document.getElementById("probabilityValue").textContent = formatPercent(result.probability, 2);
+      document.getElementById("classValue").textContent = result.predictedClass ? "Fraud" : "Legitimate";
+      document.getElementById("bandValue").textContent = result.band;
+
+      Plotly.newPlot("gaugeChart", [{
+        type: "indicator",
+        mode: "gauge+number",
+        value: result.probability * 100,
+        title: { text: "Fraud probability (%)" },
+        number: { suffix: "%" },
+        gauge: {
+          axis: { range: [0, 100] },
+          bar: { color: "#d95d39" },
+          steps: [
+            { range: [0, 35], color: "#d9f1ed" },
+            { range: [35, 70], color: "#f8e3c0" },
+            { range: [70, 100], color: "#f8d4cb" }
+          ],
+          threshold: {
+            line: { color: "#15324a", width: 4 },
+            value: threshold * 100
+          }
+        }
+      }], {
+        margin: { t: 30, r: 16, b: 0, l: 16 },
+        paper_bgcolor: "rgba(0,0,0,0)"
+      }, { responsive: true, displayModeBar: false });
+
+      const contributionSlice = result.contributions.slice(0, 10).reverse();
+      Plotly.newPlot("contributionChart", [{
+        type: "bar",
+        orientation: "h",
+        x: contributionSlice.map((row) => row.contribution),
+        y: contributionSlice.map((row) => row.feature),
+        marker: {
+          color: contributionSlice.map((row) => row.contribution),
+          colorscale: "RdBu",
+          reversescale: true
+        },
+        hovertemplate: "%{y}: %{x:.3f}<extra></extra>"
+      }], {
+        margin: { t: 16, r: 10, b: 42, l: 76 },
+        paper_bgcolor: "rgba(0,0,0,0)",
+        plot_bgcolor: "rgba(255,255,255,0.3)",
+        xaxis: { title: "Contribution to fraud log-odds" }
+      }, { responsive: true, displayModeBar: false });
+
+      document.getElementById("liveStatus").className = "status";
+      document.getElementById("liveStatus").innerHTML =
+        `Active classifier: <strong>${getActiveModel().name}</strong>. This uses the same <code>Time</code>, <code>Amount</code>, and <code>V1</code>-<code>V28</code> schema as the original project.`;
+
+      if (shouldLog) {
+        logEvent("single_prediction", {
+          probability: Number(result.probability.toFixed(6)),
+          predictedClass: result.predictedClass,
+          threshold,
+          amount: transaction.Amount,
+          hour: transaction.Hour,
+          modelName: getActiveModel().name
+        });
+      }
+    }
+
+    function requiredColumns(includeClass = false) {
+      return includeClass ? ["Time", "Amount", ...PCA_FEATURES, "Class"] : ["Time", "Amount", ...PCA_FEATURES];
+    }
+
+    function cleanRows(rawRows, requireClass = false) {
+      const needed = requiredColumns(requireClass);
+      return rawRows.map((row) => {
+        const cleaned = {};
+        needed.forEach((column) => {
+          cleaned[column] = toNumber(row[column], NaN);
+        });
+        if (Object.values(cleaned).some((value) => !Number.isFinite(value))) return null;
+        cleaned.Hour = computeHour(cleaned.Time);
+        if (!requireClass && Number.isFinite(toNumber(row.Class, NaN))) cleaned.Class = toNumber(row.Class);
+        return cleaned;
+      }).filter(Boolean);
+    }
+
+    function summarizeRows(rows) {
+      const fraudRows = rows.filter((row) => Number(row.Class) === 1).length;
+      const fraudRate = rows.length ? fraudRows / rows.length : 0;
+      const amounts = rows.map((row) => row.Amount);
+      return {
+        rows: rows.length,
+        fraudRows,
+        fraudRate,
+        medianAmount: quantile(amounts, 0.5)
+      };
+    }
+
+    function datasetCorrelations(rows) {
+      if (!rows.length || rows[0].Class === undefined) return [];
+      const y = rows.map((row) => row.Class);
+      return ["Time", "Amount", ...PCA_FEATURES].map((feature) => ({
+        feature,
+        correlation: pearson(rows.map((row) => row[feature]), y)
+      })).sort((a, b) => Math.abs(b.correlation) - Math.abs(a.correlation)).slice(0, 12);
+    }
+
+    async function readFileRows(file) {
+      if (!file) throw new Error("Please choose a CSV or ZIP file first.");
+      let csvText = "";
+      if (file.name.toLowerCase().endsWith(".zip")) {
+        const zip = await JSZip.loadAsync(file);
+        const csvEntry = Object.values(zip.files).find((entry) => entry.name.toLowerCase().endsWith(".csv"));
+        if (!csvEntry) throw new Error("The ZIP file does not contain a CSV dataset.");
+        csvText = await csvEntry.async("string");
+      } else {
+        csvText = await file.text();
+      }
+
+      return new Promise((resolve, reject) => {
+        Papa.parse(csvText, {
+          header: true,
+          dynamicTyping: true,
+          skipEmptyLines: true,
+          complete: (results) => resolve(results.data),
+          error: (error) => reject(error)
+        });
+      });
+    }
+
+    function renderDatasetStats(summary) {
+      document.getElementById("datasetStats").innerHTML = `
+        <div class="stat-box"><span>Rows</span><strong>${formatNumber(summary.rows)}</strong></div>
+        <div class="stat-box"><span>Fraud rows</span><strong>${formatNumber(summary.fraudRows)}</strong></div>
+        <div class="stat-box"><span>Fraud rate</span><strong>${formatPercent(summary.fraudRate, 3)}</strong></div>
+        <div class="stat-box"><span>Median amount</span><strong>$${formatNumber(summary.medianAmount, 2)}</strong></div>
+      `;
+    }
+
+    function renderDatasetCharts(rows) {
+      const summary = summarizeRows(rows);
+      renderDatasetStats(summary);
+      const legitRows = summary.rows - summary.fraudRows;
+
+      Plotly.newPlot("datasetClassChart", [{
+        type: "bar",
+        x: ["Legitimate", "Fraud"],
+        y: [legitRows, summary.fraudRows],
+        marker: { color: ["#26797b", "#d95d39"] }
+      }], {
+        margin: { t: 10, r: 10, b: 40, l: 50 },
+        paper_bgcolor: "rgba(0,0,0,0)",
+        plot_bgcolor: "rgba(255,255,255,0.3)"
+      }, { responsive: true, displayModeBar: false });
+
+      const hours = Array.from({ length: 24 }, (_, hour) => {
+        const slice = rows.filter((row) => row.Hour === hour);
+        const fraudRate = slice.length ? slice.filter((row) => Number(row.Class) === 1).length / slice.length : 0;
+        return { hour, fraudRate };
+      });
+      Plotly.newPlot("datasetHourChart", [{
+        type: "scatter",
+        mode: "lines+markers",
+        x: hours.map((row) => row.hour),
+        y: hours.map((row) => row.fraudRate),
+        line: { color: "#d95d39", width: 3 },
+        marker: { size: 8 }
+      }], {
+        margin: { t: 10, r: 10, b: 40, l: 50 },
+        paper_bgcolor: "rgba(0,0,0,0)",
+        plot_bgcolor: "rgba(255,255,255,0.3)",
+        xaxis: { title: "Hour of day" },
+        yaxis: { title: "Fraud rate", tickformat: ".1%" }
+      }, { responsive: true, displayModeBar: false });
+
+      const correlations = datasetCorrelations(rows);
+      Plotly.newPlot("datasetCorrelationChart", [{
+        type: "bar",
+        x: correlations.map((row) => row.feature),
+        y: correlations.map((row) => row.correlation),
+        marker: {
+          color: correlations.map((row) => row.correlation),
+          colorscale: "RdBu",
+          reversescale: true
+        }
+      }], {
+        margin: { t: 10, r: 10, b: 40, l: 50 },
+        paper_bgcolor: "rgba(0,0,0,0)",
+        plot_bgcolor: "rgba(255,255,255,0.3)",
+        yaxis: { title: "Correlation" }
+      }, { responsive: true, displayModeBar: false });
+    }
+
+    function sampleRowsStratified(rows, cap) {
+      if (!cap || rows.length <= cap) return rows.slice();
+      const fraud = rows.filter((row) => row.Class === 1);
+      const legit = rows.filter((row) => row.Class === 0);
+      const fraudTarget = Math.min(
+        fraud.length,
+        Math.max(1, Math.round(cap * 0.2), Math.round(cap * (fraud.length / rows.length)))
+      );
+      const legitTarget = Math.max(1, cap - fraudTarget);
+      return [
+        ...shuffleInPlace(legit.slice()).slice(0, legitTarget),
+        ...shuffleInPlace(fraud.slice()).slice(0, fraudTarget)
+      ];
+    }
+
+    function stratifiedSplit(rows, testRatio = 0.2) {
+      const fraud = shuffleInPlace(rows.filter((row) => row.Class === 1).slice());
+      const legit = shuffleInPlace(rows.filter((row) => row.Class === 0).slice());
+      const fraudTest = Math.max(1, Math.round(fraud.length * testRatio));
+      const legitTest = Math.max(1, Math.round(legit.length * testRatio));
+      const test = [...fraud.slice(0, fraudTest), ...legit.slice(0, legitTest)];
+      const train = [...fraud.slice(fraudTest), ...legit.slice(legitTest)];
+      return {
+        train: shuffleInPlace(train),
+        test: shuffleInPlace(test)
+      };
+    }
+
+    function computeScaler(rows) {
+      const timeValues = rows.map((row) => row.Time);
+      const amountValues = rows.map((row) => row.Amount);
+      const hourValues = rows.map((row) => row.Hour);
+      const center = [quantile(timeValues, 0.5), quantile(amountValues, 0.5), quantile(hourValues, 0.5)];
+      const scale = [
+        quantile(timeValues, 0.75) - quantile(timeValues, 0.25),
+        quantile(amountValues, 0.75) - quantile(amountValues, 0.25),
+        quantile(hourValues, 0.75) - quantile(hourValues, 0.25)
+      ].map((value) => (Math.abs(value) < 1e-9 ? 1 : value));
+      return { center, scale };
+    }
+
+    function vectorFromRow(row, scaler) {
+      return [
+        (row.Time - scaler.center[0]) / scaler.scale[0],
+        (row.Amount - scaler.center[1]) / scaler.scale[1],
+        (row.Hour - scaler.center[2]) / scaler.scale[2],
+        ...PCA_FEATURES.map((feature) => row[feature])
+      ];
+    }
+
+    function oversampleMinority(samples) {
+      const classZero = samples.filter((sample) => sample.y === 0);
+      const classOne = samples.filter((sample) => sample.y === 1);
+      if (!classZero.length || !classOne.length) return samples.slice();
+      const majority = classZero.length >= classOne.length ? classZero : classOne;
+      const minority = classZero.length >= classOne.length ? classOne : classZero;
+      const minorityClass = minority[0].y;
+      const balanced = samples.slice();
+      const needed = majority.length - minority.length;
+      for (let index = 0; index < needed; index += 1) {
+        const a = minority[Math.floor(Math.random() * minority.length)];
+        const b = minority[Math.floor(Math.random() * minority.length)];
+        const alpha = Math.random();
+        const synthetic = a.x.map((value, index) => value + alpha * (b.x[index] - value));
+        balanced.push({ x: synthetic, y: minorityClass });
+      }
+      return shuffleInPlace(balanced);
+    }
+
+    function dot(left, right) {
+      let total = 0;
+      for (let index = 0; index < left.length; index += 1) total += left[index] * right[index];
+      return total;
+    }
+
+    function trainLogisticRegression(samples, featureCount) {
+      let weights = Array(featureCount).fill(0);
+      let intercept = 0;
+      let learningRate = 0.055;
+      const l2 = 0.0015;
+      const epochs = 90;
+      const batchSize = 256;
+      const working = samples.slice();
+
+      for (let epoch = 0; epoch < epochs; epoch += 1) {
+        shuffleInPlace(working);
+        for (let start = 0; start < working.length; start += batchSize) {
+          const batch = working.slice(start, start + batchSize);
+          const grad = Array(featureCount).fill(0);
+          let gradBias = 0;
+          batch.forEach((sample) => {
+            const probability = sigmoid(dot(weights, sample.x) + intercept);
+            const error = probability - sample.y;
+            for (let index = 0; index < featureCount; index += 1) {
+              grad[index] += error * sample.x[index];
+            }
+            gradBias += error;
+          });
+          const scale = 1 / batch.length;
+          for (let index = 0; index < featureCount; index += 1) {
+            weights[index] -= learningRate * ((grad[index] * scale) + l2 * weights[index]);
+          }
+          intercept -= learningRate * gradBias * scale;
+        }
+        if (epoch === 30 || epoch === 60) learningRate *= 0.7;
+      }
+      return { weights, intercept };
+    }
+
+    function evaluateScores(labels, scores, threshold) {
+      let tp = 0;
+      let fp = 0;
+      let tn = 0;
+      let fn = 0;
+      for (let index = 0; index < labels.length; index += 1) {
+        const predicted = scores[index] >= threshold ? 1 : 0;
+        const actual = labels[index];
+        if (predicted === 1 && actual === 1) tp += 1;
+        else if (predicted === 1 && actual === 0) fp += 1;
+        else if (predicted === 0 && actual === 0) tn += 1;
+        else fn += 1;
+      }
+      const precision = tp + fp ? tp / (tp + fp) : 0;
+      const recall = tp + fn ? tp / (tp + fn) : 0;
+      const f1 = precision + recall ? (2 * precision * recall) / (precision + recall) : 0;
+      return { precision, recall, f1, alerts: tp + fp, tp, fp, tn, fn };
+    }
+
+    function thresholdTable(labels, scores) {
+      const rows = [];
+      let bestThreshold = 0.5;
+      let bestF1 = -1;
+      for (let threshold = 0.1; threshold <= 0.95 + 1e-9; threshold += 0.05) {
+        const rounded = Number(threshold.toFixed(2));
+        const metrics = evaluateScores(labels, scores, rounded);
+        rows.push({
+          threshold: rounded,
+          precision: metrics.precision,
+          recall: metrics.recall,
+          f1: metrics.f1,
+          alerts: metrics.alerts
+        });
+        if (metrics.f1 > bestF1) {
+          bestF1 = metrics.f1;
+          bestThreshold = rounded;
+        }
+      }
+      return { rows, bestThreshold };
+    }
+
+    function precisionRecallCurve(labels, scores) {
+      const pairs = scores.map((score, index) => ({ score, label: labels[index] })).sort((a, b) => b.score - a.score);
+      const positives = labels.filter((label) => label === 1).length;
+      if (!positives) return [{ recall: 0, precision: 0 }];
+      let tp = 0;
+      let fp = 0;
+      const points = [{ recall: 0, precision: 1 }];
+      pairs.forEach((pair) => {
+        if (pair.label === 1) tp += 1;
+        else fp += 1;
+        points.push({
+          recall: tp / positives,
+          precision: tp / Math.max(1, tp + fp)
+        });
+      });
+      return points;
+    }
+
+    function integratePRAuc(points) {
+      let area = 0;
+      for (let index = 1; index < points.length; index += 1) {
+        const left = points[index - 1];
+        const right = points[index];
+        area += (right.recall - left.recall) * ((left.precision + right.precision) / 2);
+      }
+      return area;
+    }
+
+    function averagePrecision(labels, scores) {
+      const pairs = scores.map((score, index) => ({ score, label: labels[index] })).sort((a, b) => b.score - a.score);
+      const positives = labels.filter((label) => label === 1).length;
+      if (!positives) return 0;
+      let tp = 0;
+      let fp = 0;
+      let lastRecall = 0;
+      let total = 0;
+      pairs.forEach((pair) => {
+        if (pair.label === 1) {
+          tp += 1;
+          const recall = tp / positives;
+          const precision = tp / (tp + fp);
+          total += precision * (recall - lastRecall);
+          lastRecall = recall;
+        } else {
+          fp += 1;
+        }
+      });
+      return total;
+    }
+
+    function featureDefaults(rows) {
+      const defaults = {};
+      ["Time", "Amount", "Hour", ...PCA_FEATURES].forEach((feature) => {
+        defaults[feature] = quantile(rows.map((row) => row[feature]), 0.5);
+      });
+      return defaults;
+    }
+
+    function featureBounds(rows) {
+      const bounds = {};
+      ["Time", "Amount", ...PCA_FEATURES].forEach((feature) => {
+        const values = rows.map((row) => row[feature]);
+        bounds[feature] = [quantile(values, 0.01), quantile(values, 0.99)];
+      });
+      return bounds;
+    }
+
+    function trainCustomModel(rows, modelName, rowCap) {
+      const sampled = sampleRowsStratified(rows, rowCap);
+      const split = stratifiedSplit(sampled, 0.2);
+      const scaler = computeScaler(split.train);
+      const trainSamples = split.train.map((row) => ({ x: vectorFromRow(row, scaler), y: row.Class }));
+      const balancedTrain = oversampleMinority(trainSamples);
+      const trained = trainLogisticRegression(balancedTrain, BASE_MODEL_PAYLOAD.feature_order.length);
+
+      const testVectors = split.test.map((row) => vectorFromRow(row, scaler));
+      const testLabels = split.test.map((row) => row.Class);
+      const scores = testVectors.map((vector) => sigmoid(dot(trained.weights, vector) + trained.intercept));
+      const table = thresholdTable(testLabels, scores);
+      const prPoints = precisionRecallCurve(testLabels, scores);
+      const metricsAtHalf = table.rows.find((row) => Math.abs(row.threshold - 0.5) < 0.00001) || table.rows[0];
+      const summary = summarizeRows(rows);
+      const payload = {
+        feature_order: BASE_MODEL_PAYLOAD.feature_order,
+        intercept: trained.intercept,
+        coefficients: trained.weights,
+        robust_center: scaler.center,
+        robust_scale: scaler.scale,
+        metrics: {
+          pr_auc: integratePRAuc(prPoints),
+          average_precision: averagePrecision(testLabels, scores),
+          precision: metricsAtHalf.precision,
+          recall: metricsAtHalf.recall,
+          f1: metricsAtHalf.f1,
+          best_threshold: table.bestThreshold
+        },
+        threshold_table: table.rows,
+        top_correlations: datasetCorrelations(sampled),
+        coefficient_view: buildCoefficientView(BASE_MODEL_PAYLOAD.feature_order, trained.weights),
+        dataset_summary: {
+          rows: summary.rows,
+          fraud_count: summary.fraudRows,
+          fraud_rate: summary.fraudRate,
+          median_amount: summary.medianAmount
+        },
+        feature_defaults: featureDefaults(sampled),
+        feature_bounds: featureBounds(sampled),
+        training_summary: {
+          rows_used: sampled.length,
+          train_rows: split.train.length,
+          test_rows: split.test.length,
+          balanced_train_rows: balancedTrain.length
+        }
+      };
+      return hydrateModel(payload, {
+        id: `custom-${Date.now()}`,
+        name: modelName,
+        sourceType: "custom",
+        createdAt: new Date().toISOString()
+      });
+    }
+
+    function confusionMetrics(results, threshold) {
+      const labeled = results.filter((row) => row.actualClass === 0 || row.actualClass === 1);
+      if (!labeled.length) return null;
+      const metrics = evaluateScores(labeled.map((row) => row.actualClass), labeled.map((row) => row.probability), threshold);
+      return {
+        tp: metrics.tp,
+        fp: metrics.fp,
+        tn: metrics.tn,
+        fn: metrics.fn,
+        precision: metrics.precision,
+        recall: metrics.recall,
+        f1: metrics.f1
+      };
+    }
+
+    function renderBatchTable(results) {
+      const tbody = document.querySelector("#batchTable tbody");
+      const sorted = results.slice().sort((a, b) => b.probability - a.probability).slice(0, 75);
+      tbody.innerHTML = sorted.map((row, index) => `
+        <tr>
+          <td>${index + 1}</td>
+          <td>$${formatNumber(row.Amount, 2)}</td>
+          <td>${formatNumber(row.Time, 0)}</td>
+          <td>${row.Hour}</td>
+          <td>${formatPercent(row.probability, 2)}</td>
+          <td><span class="tag ${riskClass(row.probability)}">${row.predictedClass ? "Fraud" : "Legitimate"}</span></td>
+          <td>${row.actualClass === undefined ? "-" : row.actualClass}</td>
+        </tr>
+      `).join("");
+    }
+
+    function renderBatchResults(rows, shouldLog = true) {
+      const threshold = getThreshold();
+      const model = getActiveModel();
+      const results = rows.map((row) => {
+        const transaction = { Time: row.Time, Amount: row.Amount, Hour: row.Hour };
+        PCA_FEATURES.forEach((feature) => { transaction[feature] = row[feature]; });
+        const scored = scoreTransaction(transaction, threshold, model);
+        return {
+          ...transaction,
+          actualClass: row.Class,
+          probability: scored.probability,
+          predictedClass: scored.predictedClass,
+          band: scored.band
+        };
+      });
+      state.batchResults = results;
+      const flagged = results.filter((row) => row.predictedClass === 1);
+      const avgScore = results.length ? results.reduce((sum, row) => sum + row.probability, 0) / results.length : 0;
+      const metrics = confusionMetrics(results, threshold);
+
+      document.getElementById("batchStatus").className = "status";
+      document.getElementById("batchStatus").textContent =
+        `${formatNumber(results.length)} rows screened with ${model.name}. ${formatNumber(flagged.length)} flagged at threshold ${threshold.toFixed(2)}.`;
+      document.getElementById("batchStats").innerHTML = `
+        <div class="stat-box"><span>Rows screened</span><strong>${formatNumber(results.length)}</strong></div>
+        <div class="stat-box"><span>Alerts raised</span><strong>${formatNumber(flagged.length)}</strong></div>
+        <div class="stat-box"><span>Average score</span><strong>${formatPercent(avgScore, 2)}</strong></div>
+        <div class="stat-box"><span>Precision / Recall</span><strong>${metrics ? `${metrics.precision.toFixed(3)} / ${metrics.recall.toFixed(3)}` : "No labels"}</strong></div>
+      `;
+
+      Plotly.newPlot("batchScatterChart", [{
+        type: "scatter",
+        mode: "markers",
+        x: results.slice(0, 3000).map((row) => row.Amount),
+        y: results.slice(0, 3000).map((row) => row.probability),
+        text: results.slice(0, 3000).map((row) => `Time: ${formatNumber(row.Time, 0)}<br>Hour: ${row.Hour}<br>Prediction: ${row.predictedClass}`),
+        marker: {
+          size: 9,
+          color: results.slice(0, 3000).map((row) => row.probability),
+          colorscale: [[0, "#26797b"], [0.5, "#efb24e"], [1, "#d95d39"]],
+          opacity: 0.78
+        },
+        hovertemplate: "Amount: $%{x:.2f}<br>Fraud probability: %{y:.2%}<br>%{text}<extra></extra>"
+      }], {
+        margin: { t: 10, r: 10, b: 46, l: 54 },
+        paper_bgcolor: "rgba(0,0,0,0)",
+        plot_bgcolor: "rgba(255,255,255,0.3)",
+        xaxis: { title: "Amount" },
+        yaxis: { title: "Fraud probability", tickformat: ".0%" }
+      }, { responsive: true, displayModeBar: false });
+
+      renderBatchTable(results);
+      if (shouldLog) {
+        logEvent("batch_screen", {
+          rows: results.length,
+          alerts: flagged.length,
+          precision: metrics ? Number(metrics.precision.toFixed(4)) : null,
+          recall: metrics ? Number(metrics.recall.toFixed(4)) : null,
+          threshold,
+          modelName: model.name
+        });
+      }
+    }
+
+    function downloadBatchCsv() {
+      if (!state.batchResults || !state.batchResults.length) {
+        document.getElementById("batchStatus").className = "status danger";
+        document.getElementById("batchStatus").textContent = "Run a batch screen first so there is something to download.";
+        return;
+      }
+      const headers = ["Time", "Amount", "Hour", ...PCA_FEATURES, "fraud_probability", "predicted_class", "actual_class"];
+      const lines = [
+        headers.join(","),
+        ...state.batchResults.map((row) => [
+          row.Time,
+          row.Amount,
+          row.Hour,
+          ...PCA_FEATURES.map((feature) => row[feature]),
+          row.probability,
+          row.predictedClass,
+          row.actualClass ?? ""
+        ].join(","))
+      ];
+      const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "fraud_scored_batch.csv";
+      link.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function buildFeatureGrid() {
+      document.getElementById("featureGrid").innerHTML = PCA_FEATURES.map((feature) => `
+        <div class="feature-card">
+          <label for="feature-${feature}">${feature}</label>
+          <input id="feature-${feature}" type="number" step="0.0001">
+        </div>
+      `).join("");
+    }
+
+    function renderHistory() {
+      const history = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
+      document.getElementById("historyCount").textContent = formatNumber(history.length);
+      document.querySelector("#historyTable tbody").innerHTML = history.slice(0, 20).map((entry) => `
+        <tr>
+          <td>${new Date(entry.createdAt).toLocaleString()}</td>
+          <td>${entry.type}</td>
+          <td>${entry.summary}</td>
+        </tr>
+      `).join("");
+    }
+
+    async function pushModelToFirestore(model) {
+      if (!state.firestore) return;
+      try {
+        await state.firestore.collection("trained_models_catalog").doc(model.id).set({
+          ...serializeModel(model),
+          savedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+      } catch (error) {
+        setFirebaseStatus(
+          `Firebase is available, but saving custom model records is blocked by your Firestore rules. Browser storage still works. (${error.message})`,
+          "Fallback active",
+          "status warn"
+        );
+      }
+    }
+
+    async function logEvent(type, payload) {
+      const summaryMap = {
+        single_prediction: `Scored amount $${formatNumber(payload.amount || 0, 2)} at hour ${payload.hour ?? "-"} using ${payload.modelName || "active model"}.`,
+        dataset_loaded: `Loaded ${formatNumber(payload.rows || 0)} rows with fraud rate ${formatPercent(payload.fraudRate || 0, 3)}.`,
+        batch_screen: `Screened ${formatNumber(payload.rows || 0)} rows and flagged ${formatNumber(payload.alerts || 0)} with ${payload.modelName || "active model"}.`,
+        model_trained: `Trained ${payload.modelName || "custom model"} on ${formatNumber(payload.rowsUsed || 0)} rows.`,
+        model_switched: `Switched active classifier to ${payload.modelName || "selected model"}.`,
+        model_deleted: `Deleted custom model ${payload.modelName || ""}.`
+      };
+      const entry = {
+        type,
+        payload,
+        summary: summaryMap[type] || "Action completed.",
+        createdAt: new Date().toISOString()
+      };
+      const history = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
+      history.unshift(entry);
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(0, 40)));
+      renderHistory();
+
+      if (!state.firestore) return;
+      try {
+        await state.firestore.collection("fraud_html_events").add({
+          ...entry,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+      } catch (error) {
+        setFirebaseStatus(
+          `Firebase initialized, but writes are currently blocked. Browser fallback logging is still active. (${error.message})`,
+          "Fallback active",
+          "status warn"
+        );
+      }
+    }
+
+    function setFirebaseStatus(message, mode, cssClass = "status") {
+      document.getElementById("firebaseStatus").className = cssClass;
+      document.getElementById("firebaseStatus").textContent = message;
+      document.getElementById("firebaseMode").textContent = mode;
+      document.getElementById("firebaseInlineStatus").textContent = mode;
+    }
+
+    function initFirebase() {
+      try {
+        firebase.initializeApp(FIREBASE_CONFIG);
+        state.firestore = firebase.firestore();
+        setFirebaseStatus(
+          "Firebase client initialized. Firestore can capture event logs and trained-model metadata if your security rules allow writes from this app.",
+          "Ready"
+        );
+      } catch (error) {
+        setFirebaseStatus(
+          `Firebase could not initialize, so the app is using browser-only history storage instead. (${error.message})`,
+          "Local only",
+          "status warn"
+        );
+      }
+    }
+
+    function refreshCustomModelStats() {
+      const model = getActiveModel();
+      const training = model.training_summary || {};
+      document.getElementById("customModelStats").innerHTML = `
+        <div class="stat-box"><span>Active model</span><strong>${model.name}</strong></div>
+        <div class="stat-box"><span>Rows used</span><strong>${training.rows_used ? formatNumber(training.rows_used) : "-"}</strong></div>
+        <div class="stat-box"><span>PR-AUC</span><strong>${(model.metrics.pr_auc || 0).toFixed(3)}</strong></div>
+        <div class="stat-box"><span>Recall</span><strong>${(model.metrics.recall || 0).toFixed(3)}</strong></div>
+      `;
+    }
+
+    function renderModelRegistry() {
+      const activeId = getActiveModel().id;
+      const registry = document.getElementById("modelRegistryList");
+      registry.innerHTML = getAllModels().map((model) => `
+        <div class="registry-card ${model.id === activeId ? "active" : ""}">
+          <strong>${model.name}</strong>
+          <span>Type: ${model.sourceType === "embedded" ? "Embedded baseline" : "Custom uploaded dataset"}</span>
+          <span>PR-AUC: ${(model.metrics.pr_auc || 0).toFixed(3)} | Best threshold: ${(model.metrics.best_threshold || 0.5).toFixed(2)}</span>
+          <span>Rows: ${formatNumber(model.dataset_summary.rows || 0)} | Fraud rate: ${formatPercent(model.dataset_summary.fraud_rate || 0, 3)}</span>
+        </div>
+      `).join("");
+      document.getElementById("customModelCount").textContent = formatNumber(state.customModels.length);
+    }
+
+    function syncModelSelects(modelId) {
+      ["activeModelSelect", "activeModelSelectDataset"].forEach((elementId) => {
+        const select = document.getElementById(elementId);
+        if (select) select.value = modelId;
+      });
+    }
+
+    function refreshModelSelects() {
+      const models = getAllModels();
+      const options = models.map((model) =>
+        `<option value="${model.id}">${model.name} ${model.sourceType === "embedded" ? "(Baseline)" : "(Custom)"}</option>`
+      ).join("");
+      ["activeModelSelect", "activeModelSelectDataset"].forEach((elementId) => {
+        const select = document.getElementById(elementId);
+        select.innerHTML = options;
+      });
+      syncModelSelects(getActiveModel().id);
+    }
+
+    function refreshModelUI() {
+      refreshModelSelects();
+      renderModelRegistry();
+      refreshCustomModelStats();
+      renderHeroAndMetrics();
+      document.getElementById("activeModelSource").value = getActiveModel().sourceType === "embedded"
+        ? "Embedded Kaggle baseline"
+        : "Custom uploaded dataset";
+    }
+
+    function setActiveModel(modelId, shouldLog = true) {
+      state.activeModel = findModel(modelId);
+      refreshModelUI();
+      renderOverviewCharts();
+      renderThresholdState();
+      renderPrediction(getFormTransaction(), false);
+      if (state.batchRows) renderBatchResults(state.batchRows, false);
+      if (shouldLog) {
+        logEvent("model_switched", { modelName: state.activeModel.name });
+      }
+    }
+
+    async function analyzeDataset() {
+      const file = document.getElementById("datasetUpload").files[0];
+      const status = document.getElementById("datasetStatus");
+      status.className = "status";
+      status.textContent = "Parsing uploaded dataset...";
+      try {
+        const rawRows = await readFileRows(file);
+        const rows = cleanRows(rawRows, true);
+        if (!rows.length) throw new Error("No valid rows matched the Kaggle schema.");
+        state.datasetRows = rows;
+        renderDatasetCharts(rows);
+        const summary = summarizeRows(rows);
+        status.className = "status";
+        status.textContent =
+          `Loaded ${formatNumber(summary.rows)} rows successfully. You can now analyze it, reuse it for batch scoring, or train a custom classifier from it.`;
+        document.getElementById("customDatasetName").value = file ? file.name.replace(/\.(csv|zip)$/i, "") : "Custom Fraud Model";
+        await logEvent("dataset_loaded", {
+          rows: summary.rows,
+          fraudRows: summary.fraudRows,
+          fraudRate: summary.fraudRate
+        });
+      } catch (error) {
+        status.className = "status danger";
+        status.textContent = error.message || "Dataset parsing failed.";
+      }
+    }
+
+    async function trainCustomModelFromLoadedDataset() {
+      const status = document.getElementById("customModelStatus");
+      if (!state.datasetRows || !state.datasetRows.length) {
+        status.className = "status warn";
+        status.textContent = "Load and analyze a labeled same-schema dataset first.";
+        return;
+      }
+      const hasLabels = state.datasetRows.some((row) => row.Class === 0 || row.Class === 1);
+      if (!hasLabels) {
+        status.className = "status danger";
+        status.textContent = "The loaded dataset must include the Class column so the browser can train a classifier.";
+        return;
+      }
+      const fraudRows = state.datasetRows.filter((row) => row.Class === 1).length;
+      const legitRows = state.datasetRows.filter((row) => row.Class === 0).length;
+      if (!fraudRows || !legitRows) {
+        status.className = "status danger";
+        status.textContent = "The training dataset needs both legitimate and fraud examples.";
+        return;
+      }
+
+      const modelName = document.getElementById("customDatasetName").value.trim() || `Custom Fraud Model ${state.customModels.length + 1}`;
+      const rowCap = Math.max(1000, toNumber(document.getElementById("customTrainCap").value, 12000));
+      status.className = "status";
+      status.textContent = "Training browser-side logistic regression on the loaded dataset...";
+      await new Promise((resolve) => setTimeout(resolve, 40));
+
+      try {
+        const model = trainCustomModel(state.datasetRows, modelName, rowCap);
+        state.customModels.unshift(model);
+        persistCustomModels();
+        await pushModelToFirestore(model);
+        setActiveModel(model.id, false);
+        status.className = "status";
+        status.textContent =
+          `Custom model "${model.name}" trained successfully. PR-AUC ${(model.metrics.pr_auc || 0).toFixed(3)}, recall ${(model.metrics.recall || 0).toFixed(3)} at threshold 0.50.`;
+        await logEvent("model_trained", {
+          modelName: model.name,
+          rowsUsed: model.training_summary.rows_used,
+          prAuc: model.metrics.pr_auc
+        });
+      } catch (error) {
+        status.className = "status danger";
+        status.textContent = error.message || "Custom model training failed.";
+      }
+    }
+
+    function deleteSelectedCustomModel() {
+      const selectedId = document.getElementById("activeModelSelectDataset").value;
+      if (selectedId === BASE_MODEL_ID) {
+        document.getElementById("customModelStatus").className = "status warn";
+        document.getElementById("customModelStatus").textContent = "The embedded Kaggle baseline is built in and cannot be deleted.";
+        return;
+      }
+      const selectedModel = findModel(selectedId);
+      state.customModels = state.customModels.filter((model) => model.id !== selectedId);
+      persistCustomModels();
+      if (getActiveModel().id === selectedId) {
+        state.activeModel = state.baseModel;
+      }
+      refreshModelUI();
+      renderOverviewCharts();
+      renderThresholdState();
+      renderPrediction(getFormTransaction(), false);
+      document.getElementById("customModelStatus").className = "status";
+      document.getElementById("customModelStatus").textContent = `Deleted custom model "${selectedModel.name}".`;
+      logEvent("model_deleted", { modelName: selectedModel.name });
+    }
+
+    async function screenBatch() {
+      const status = document.getElementById("batchStatus");
+      status.className = "status";
+      status.textContent = "Preparing batch rows...";
+      try {
+        let rows = null;
+        const file = document.getElementById("batchUpload").files[0];
+        if (file) {
+          const rawRows = await readFileRows(file);
+          rows = cleanRows(rawRows, false);
+        } else if (state.datasetRows) {
+          rows = state.datasetRows;
+        } else {
+          throw new Error("Upload a batch file or load the Kaggle dataset first.");
+        }
+        if (!rows.length) throw new Error("No valid transaction rows were found in the batch.");
+        state.batchRows = rows;
+        renderBatchResults(rows, true);
+      } catch (error) {
+        status.className = "status danger";
+        status.textContent = error.message || "Batch scoring failed.";
+      }
+    }
+
+    function wireTabs() {
+      document.querySelectorAll(".tab-btn").forEach((button) => {
+        button.addEventListener("click", () => {
+          document.querySelectorAll(".tab-btn").forEach((item) => item.classList.remove("active"));
+          document.querySelectorAll(".tab-panel").forEach((panel) => panel.classList.remove("active"));
+          button.classList.add("active");
+          document.getElementById(button.dataset.target).classList.add("active");
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        });
+      });
+    }
+
+    function wireEvents() {
+      document.getElementById("thresholdSlider").addEventListener("input", renderThresholdState);
+      document.getElementById("fieldTime").addEventListener("input", () => {
+        document.getElementById("derivedHour").value = computeHour(document.getElementById("fieldTime").value);
+      });
+      document.getElementById("scoreTxnBtn").addEventListener("click", () => renderPrediction(getFormTransaction(), true));
+      document.getElementById("medianProfileBtn").addEventListener("click", () => setFormProfile(buildProfile("median")));
+      document.getElementById("fraudProfileBtn").addEventListener("click", () => setFormProfile(buildProfile("fraud")));
+      document.getElementById("safeProfileBtn").addEventListener("click", () => setFormProfile(buildProfile("safe")));
+      document.getElementById("analyzeDatasetBtn").addEventListener("click", analyzeDataset);
+      document.getElementById("trainCustomModelBtn").addEventListener("click", trainCustomModelFromLoadedDataset);
+      document.getElementById("activateBaseModelBtn").addEventListener("click", () => setActiveModel(BASE_MODEL_ID, true));
+      document.getElementById("deleteCustomModelBtn").addEventListener("click", deleteSelectedCustomModel);
+      document.getElementById("screenBatchBtn").addEventListener("click", screenBatch);
+      document.getElementById("downloadBatchBtn").addEventListener("click", downloadBatchCsv);
+      document.getElementById("reuseBatchBtn").addEventListener("click", () => {
+        if (!state.datasetRows) {
+          document.getElementById("datasetStatus").className = "status warn";
+          document.getElementById("datasetStatus").textContent = "Load a same-schema dataset first, then you can reuse it as a batch source.";
+          return;
+        }
+        state.batchRows = state.datasetRows;
+        document.getElementById("batchStatus").className = "status";
+        document.getElementById("batchStatus").textContent = "The loaded dataset is ready to screen in the Batch Monitor tab.";
+      });
+      ["activeModelSelect", "activeModelSelectDataset"].forEach((elementId) => {
+        document.getElementById(elementId).addEventListener("change", (event) => {
+          setActiveModel(event.target.value, true);
+        });
+      });
+    }
+
+    function boot() {
+      state.baseModel = hydrateModel(BASE_MODEL_PAYLOAD, {
+        id: BASE_MODEL_ID,
+        name: "Embedded Kaggle Baseline",
+        sourceType: "embedded"
+      });
+      state.customModels = loadSavedModels();
+      state.activeModel = state.baseModel;
+
+      buildFeatureGrid();
+      refreshModelUI();
+      setFormProfile(buildProfile("median"));
+      renderOverviewCharts();
+      renderThresholdState();
+      renderPrediction(getFormTransaction(), false);
+      initFirebase();
+      renderHistory();
+      wireTabs();
+      wireEvents();
+    }
+
+    window.addEventListener("DOMContentLoaded", boot);
+  </script>
+</body>
+</html>
